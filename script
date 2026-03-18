@@ -1,0 +1,103 @@
+local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/0x"))()
+
+-- Variable setup
+local UIS = game:GetService("UserInputService")
+local lp = game.Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local remote = ReplicatedStorage:WaitForChild("Events"):WaitForChild("MaxFuelAction")
+local fuelType = ReplicatedStorage:WaitForChild("Values"):WaitForChild("Items"):WaitForChild("FuelTypes"):WaitForChild("gasoline")
+
+-- States
+local autoSellEnabled, wsEnabled, jpEnabled = false, false, false
+local wsValue, jpValue = 16, 50
+local uiToggled = true -- Track our own toggle state
+
+-- Create Window
+local w1 = library:Window("Gas Station Simulator")
+
+-- 1. AUTO SELL
+w1:Toggle("Auto Sell Gas", "asell", false, function(v)
+    autoSellEnabled = v
+    if autoSellEnabled then
+        task.spawn(function()
+            while autoSellEnabled do
+                remote:FireServer(fuelType, "sell")
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+-- 2. LOOPING WALKSPEED (Overrides Sprint)
+w1:Toggle("Enable Custom Speed", "ws_toggle", false, function(v)
+    wsEnabled = v
+    if wsEnabled then
+        task.spawn(function()
+            while wsEnabled do
+                if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+                    lp.Character.Humanoid.WalkSpeed = wsValue
+                end
+                task.wait() 
+            end
+        end)
+    end
+end)
+w1:Slider("Speed Value", "ws_amt", 16, 300, function(v) wsValue = v end)
+
+-- 3. LOOPING JUMPPOWER
+w1:Toggle("Enable Custom Jump", "jp_toggle", false, function(state)
+    jpEnabled = state
+    if jpEnabled then
+        task.spawn(function()
+            while jpEnabled do
+                if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+                    lp.Character.Humanoid.JumpPower = jpValue
+                    lp.Character.Humanoid.UseJumpPower = true
+                end
+                task.wait()
+            end
+        end)
+    end
+end)
+w1:Slider("Jump Value", "jp_amt", 50, 300, function(v) jpValue = v end, 50)
+
+-- 4. UTILITY
+w1:Button("Destroy GUI", function()
+    for i, v in pairs(game.CoreGui:GetChildren()) do
+        if v:FindFirstChild("Top") then v:Destroy() end
+    end
+end)
+
+-- 5. THE ULTIMATE SHIFT-FIX
+local MyGui = nil
+task.spawn(function()
+    -- Wait for the UI to exist in CoreGui
+    while not MyGui do
+        for _, v in pairs(game.CoreGui:GetChildren()) do
+            if v:FindFirstChild("Top") and v:IsA("ScreenGui") then
+                MyGui = v
+                break
+            end
+        end
+        task.wait(0.5)
+    end
+
+    -- Loop to prevent the library from hiding it when you sprint
+    while MyGui do
+        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) or UIS:IsKeyDown(Enum.KeyCode.RightShift) then
+            -- If Shift is held, force the UI to match OUR 'uiToggled' variable
+            MyGui.Enabled = uiToggled
+        end
+        task.wait()
+    end
+end)
+
+-- Manual Toggle with INSERT
+UIS.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.Insert then
+        uiToggled = not uiToggled
+        if MyGui then
+            MyGui.Enabled = uiToggled
+        end
+    end
+end)
